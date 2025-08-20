@@ -4,5 +4,5 @@
 **/node_modules/
 **/dist/
 **/coverage/
-**/example/node_modules
+**/examples/*/node_modules
 CLAUDE.md

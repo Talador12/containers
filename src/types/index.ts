@@ -41,6 +41,47 @@ export interface ContainerOptions {
 
   /** Whether to enable internet access for the container */
   enableInternet?: boolean;
+
+  /** Runtime image override (must include SHA256 digest) */
+  image?: string;
+
+  /** Command to execute (alternative to entrypoint) */
+  exec?: string;
+
+  /** Arguments for the exec command */
+  args?: string[];
+
+  /** Resource limits */
+  resources?: {
+    memoryMiB?: number;
+    cpu?: number;
+    timeoutMs?: number;
+  };
+
+  /** Retry configuration */
+  retry?: {
+    maxAttempts?: number;
+    delay?: string | number;
+    strategy?: 'linear' | 'exponential-backoff';
+    retryOnExitCodes?: number[];
+  };
+
+  /** Network configuration */
+  network?: {
+    allowEgress?: boolean;
+    allowedHosts?: string[];
+  };
+
+  /** Security context */
+  security?: {
+    runAsUser?: number;
+    runAsGroup?: number;
+    readOnlyRootFilesystem?: boolean;
+    privileged?: boolean;
+  };
+
+  /** Whether to capture container output */
+  captureOutput?: boolean;
 }
 
 
@@ -59,6 +100,18 @@ export interface ContainerStartConfigOptions {
   entrypoint?: string[];
   /** Whether to enable internet access for the container */
   enableInternet?: boolean;
+  /** Runtime image override */
+  image?: string;
+  /** Command to execute */
+  exec?: string;
+  /** Arguments for the exec command */
+  args?: string[];
+  /** Resource limits */
+  resources?: {
+    memoryMiB?: number;
+    cpu?: number;
+    timeoutMs?: number;
+  };
 }
 
 export interface WaitOptions {

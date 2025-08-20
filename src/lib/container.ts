@@ -1276,4 +1276,101 @@ export class Container<Env = unknown> extends DurableObject<Env> {
   private isActivityExpired(): boolean {
     return this.sleepAfterMs <= Date.now();
   }
+
+  /**
+   * Set runtime image override (addresses image override gap)
+   * Chainable method for setting image at runtime
+   */
+  withImage(imageUri: string): this {
+    this.validateImage(imageUri);
+    this.options.image = imageUri;
+    return this;
+  }
+
+  /**
+   * Runtime configuration method (chainable)
+   * Allows dynamic configuration of container options
+   */
+  configure(config: Partial<ContainerOptions>): this {
+    Object.assign(this.options, config);
+    return this;
+  }
+
+  /**
+   * Comprehensive container execution with single configuration call
+   * Provides step.container() UX as extension to existing API
+   */
+  async run<T = any>(options: {
+    endpoint?: {
+      url: string;
+      method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+      body?: any;
+      headers?: Record<string, string>;
+    };
+    wait?: boolean;
+    autoStart?: boolean;
+    destroyOnComplete?: boolean;
+  } = {}): Promise<{ result?: T; duration: number; exitCode?: number }> {
+    const startTime = Date.now();
+
+    try {
+      // Apply any configuration from options
+      if (options.autoStart !== false) {
+        await this.startAndWaitForPorts();
+      }
+
+      let result: T | undefined;
+
+      if (options.endpoint) {
+        const { url, method = 'GET', body, headers = {} } = options.endpoint;
+        
+        const requestInit: any = { method, headers };
+        if (body && method !== 'GET') {
+          requestInit.body = typeof body === 'string' ? body : JSON.stringify(body);
+          if (!headers['Content-Type']) {
+            headers['Content-Type'] = 'application/json';
+          }
+        }
+
+        const response = await this.containerFetch(url, requestInit);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const contentType = response.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          result = await response.json();
+        } else {
+          result = await response.text() as T;
+        }
+      }
+
+      return {
+        result,
+        duration: Date.now() - startTime,
+        exitCode: 0
+      };
+
+    } catch (error) {
+      return {
+        duration: Date.now() - startTime,
+        exitCode: 1
+      };
+    } finally {
+      if (options.destroyOnComplete) {
+        await this.destroy();
+      }
+    }
+  }
+
+  private validateImage(imageUri: string): void {
+    if (!imageUri.includes('@sha256:')) {
+      throw new Error('Container images must specify SHA256 digest for security');
+    }
+
+    if (!imageUri.startsWith('docker-registry.cfdata.org/stash/')) {
+      throw new Error('Only approved internal registry images allowed');
+    }
+  }
 }
